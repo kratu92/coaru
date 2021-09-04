@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Coaru</title>
+	<style>
+		@font-face {
+			font-family: 'default';
+			src: url('./fonts/PRessStart2P-Regular.ttf');
+		}
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+		#particles {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: black;  
+		}
+		#title {
+			height: 100vh;
+			width: 100vw;
+			position: relative;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			font-family: 'default';
+			/* color: rgba(190, 240, 255, 0.9); */
+			color: rgba(255, 255, 255, 0.8);
+			font-size: 26px;
+			text-shadow: rgba(0, 120, 144, 0.6) 3px 6px;
+			animation: float 6s ease-in-out infinite;
+		}
+		@keyframes float {
+			0%   { transform: translatey(0px);   }
+			50%  { transform: translatey(-20px); }
+			100% { transform: translatey(0px);   }
+		}
+		/* radial-gradient(#007890, #053040, #000000); */
+	</style>
+</head>
+<body>
+	<canvas id="particles"></canvas>
+	<div id="title">
+		<h1>Coaru</h1>
+	</div>
+	<script>
+		
+		const minRadius = 2;
+		const maxRadius = 8;
+		const minDir    = -0.4;
+		const maxDir    = 0.4;
+
+		const canvas = document.getElementById('particles');
+		const ctx    = canvas.getContext('2d');
+		
+		let limitParticles;
+		let particleArray;
+		let mouse = {
+			x: null,
+			y: null,
+		};
+
+		class Particle {
+
+			constructor(x, y, dirX, dirY, radius, color) {
+				this.x = x;
+				this.y = y;
+				this.dirX = dirX;
+				this.dirY = dirY;
+				this.radius = radius;
+				this.color = color;
+			}
+
+			draw() {
+				ctx.beginPath();
+				ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI, false);
+				ctx.fillStyle = this.color;
+				ctx.fill();
+			}
+
+			update() {
+
+				if ( this.x  > canvas.width || this.x < 0 ) {
+					this.dirX = -this.dirX;
+				}
+				
+				if ( this.y > canvas.height || this.y < 0 ) {
+					this.dirY = -this.dirY;
+				}
+
+				const dx = this.x - mouse.x;
+				const dy = this.y - mouse.y;
+				const distance = Math.sqrt(dx*dx + dy*dy);
+
+				if ( distance <= mouse.radius ) {
+					
+					if ( mouse.x < this.x && this.x < canvas.width - this.radius*5 ) {
+						this.x += 5;
+					}
+
+					if ( mouse.x > this.x && this.x > this.radius*5 ) {
+						this.x -= 5;
+					}
+					
+					if ( mouse.y < this.y && this.y < canvas.height - this.radius*5 ) {
+						this.y += 5;
+					}
+
+					if ( mouse.y > this.y && this.y > this.radius * 5 ) {
+						this.y -= 5;
+					}
+				}
+
+				this.x += this.dirX;
+				this.y += this.dirY;
+
+				this.draw();
+			}
+		}
+
+		const connect = _ => {
+
+			const connectPercentage = 0.015;
+			const maxDistance = 100;// (canvas.width/7)*(canvas.height/7);// *(connectPercentage/100);
+
+			for ( let i=0; i<particleArray.length; i++ ) {
+				for ( let j=i+1; j<particleArray.length; j++ ) {
+					
+					const dx = particleArray[i].x - particleArray[j].x;
+					const dy = particleArray[i].y - particleArray[j].y;
+					
+					const distance = Math.sqrt(dx*dx + dy*dy);
+
+					if ( distance < maxDistance ) {
+						let opacity = 1 - distance/maxDistance;
+						ctx.beginPath();
+						ctx.lineWidth = 2;
+						ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+						ctx.moveTo(particleArray[i].x, particleArray[i].y);
+						ctx.lineTo(particleArray[j].x, particleArray[j].y);
+						ctx.stroke();
+					}
+				}
+			}
+		}
+
+		const init = _ => {
+
+			updateCanvasSize();
+			
+			const partPercentage = 0.015;
+
+			limitParticles = canvas.height*canvas.width*(partPercentage/100);
+			particleArray  = [];
+
+			for ( let i=0; i<limitParticles; i++ ) {
+				const x      = rand(0, innerWidth);
+				const y      = rand(0, innerHeight);
+				const dirX   = rand(minDir, maxDir);
+				const dirY   = rand(minDir, maxDir);
+				const radius = rand(minRadius, maxRadius);
+				const color  = `rgba(255, 255, 255, ${rand(0.4, 1)})`;
+
+				particleArray.push(new Particle(x, y, dirX, dirY, radius, color));
+			}
+
+			mouse.radius = calculateMouseRadius();
+		}
+
+		const animate = _ => {
+			
+			window.requestAnimationFrame(animate);
+			ctx.clearRect(0, 0, innerWidth, innerHeight);
+
+			for ( let i=0; i<particleArray.length; i++ ) {
+				particleArray[i].update();
+			}
+
+			connect();
+		}
+
+		const updateCanvasSize = _ => {
+			canvas.width  = window.innerWidth;
+			canvas.height = window.innerHeight;
+		}
+
+		const updateMouse = event => {
+			mouse.x = event.x;
+			mouse.y = event.y;
+		}
+		const resetMouse = event => {
+			mouse.x = null;
+			mouse.y = null;
+		}
+		
+		const rand = (min, max) => {
+			return Math.random()*(max-min) + min;
+		}
+
+		const calculateMouseRadius = _ => {
+			const windowPercentage = 0.01;
+			return canvas.height*canvas.width*(windowPercentage/100);
+		}
+	
+		init();
+		animate();
+
+		window.addEventListener('resize', init);
+		window.addEventListener('mousemove', updateMouse);
+		window.addEventListener('mouseout', resetMouse);
+
+	</script>
+</body>
+</html>
